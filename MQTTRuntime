@@ -1,0 +1,75 @@
+class HubMQTTRuntime:
+    def __init__(self):
+        self.config = {
+            "clientName": "PiZero",
+            "Broker": {"IP": "octopi.local", "Port": 9001},
+            ##Add arguments to TopicSchema?
+            "TopicSchema":{
+                "CMD/PiZero/RGB/Color": self.rgb_color, #Requires JSON arguments
+                "CMD/PiZero/RGB/Off": self.rgb_off,
+                "CMD/PiZero/PubState/Start": self.start_publish_state,
+                "CMD/PiZero/PubState/Stop": self.stop_publish_state
+                },
+            "StartState": {
+                "RGBColor": 'Off',
+                "Publishing": False
+            }
+        }
+        self.state = self.config['StartState']
+
+
+        #INIT Hardware
+        self.LED = RGBLED(20,21,16)
+        self.LED.color = Color('purple')
+        
+        #Init MQTT
+        self.mqtt = mqtt.Client(client_id =self.config['clientName'], transport ="websockets")
+        self.mqtt.connect(self.config['Broker']["IP"], self.config['Broker']["Port"] )
+        self.mqtt.on_connect = self.on_connect
+        self.mqtt.on_message = self.on_message
+        self.mqtt.on_disconnect = self.on_disconnect
+        self.mqtt.loop_forever()
+
+    def on_connect(self, client, userdata, flags, rc):
+        logging.info("Connected with result code " + str(rc))
+        # Subscribing in on_connect() means that if we lose the connection and
+        # reconnect then subscriptions will be renewed.
+        self.subscribe()
+
+    def subscribe(self):
+        for topic in self.config['TopicSchema']:
+            self.mqtt.subscribe(topic,0)
+            logging.info(f'subscribed to {topic}')
+
+    def on_message(self, client, userdata, msg):
+            func = self.config['TopicSchema'].get(msg.topic)
+            logging.info(f'called {func} function')
+            func(json.loads(msg.payload))
+
+    def on_disconnect( self, client,userdata,rc):
+        logging.info("disconnecting reason  "  +str(rc))
+
+#   Async IO Callback for publishing state
+    def start_publish_state(self, interval=1):
+        logging.info(f'Starting publish {self.state} with interval of {interval}')
+
+    def stop_publish_state(self):
+        logging.info('Stopped Publish')
+
+    # Function Handlers for TopicSchema
+
+    def rgb_color(self,payload):
+        logging.info(f'RGB Color {payload}')
+        c = payload['color']
+        logging.info(c)
+        self.LED.color = Color(c)
+
+
+    def rgb_off(self, payload):
+        logging.info('RGB Off')
+        self.LED.off()
+        
+
+
+if __name__ == '__main__':
+    Run = HubMQTTRuntime()

@@ -2,7 +2,7 @@ class HubMQTTRuntime:
     def __init__(self):
         self.config = {
             "clientName": "PiZero",
-            "Broker": {"IP": "octopi.local", "Port": 9001},
+            "Broker": {"IP": "", "Port": },
             ##Add arguments to TopicSchema?
             "TopicSchema":{
                 "CMD/PiZero/RGB/Color": self.rgb_color, #Requires JSON arguments
